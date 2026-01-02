@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.models.record import Record, StatusEnum
+from workflow_service.app.models.record import Record, StatusEnum
 
 def compute_score(metrics: dict) -> float:
     # Simple deterministic weighted sum; weights are a simple heuristic

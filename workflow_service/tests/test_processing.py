@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
-from app.main import app
-from app.database import Base, engine, SessionLocal
-from app.models.record import Record, StatusEnum
+from workflow_service.app.main import app
+from workflow_service.app.database import Base, engine, SessionLocal
+from workflow_service.app.models.record import Record, StatusEnum
 
 client = TestClient(app)
 
