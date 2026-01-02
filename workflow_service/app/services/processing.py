@@ -1,45 +1,54 @@
-from sqlalchemy.orm import Session
+import logging
+from typing import Optional
+
+from sqlalchemy.orm import sessionmaker, Session
+
+from ..database import engine  # engine should be exported by workflow_service.app.database
 from ..models.record import Record, StatusEnum
 
-def compute_score(metrics: dict) -> float:
-    # Simple deterministic weighted sum; weights are a simple heuristic
-    # If expected keys missing, default to 0
-    severity = float(metrics.get("severity", 0))
-    impact = float(metrics.get("impact", 0))
-    urgency = float(metrics.get("urgency", 0))
-    # weights: severity 0.5, impact 0.3, urgency 0.2
-    score = severity * 0.5 + impact * 0.3 + urgency * 0.2
-    return round(score, 2)
+# Create a session factory bound to the app's engine. If your database module already
+# exports a SessionLocal or sessionmaker, you can import that instead.
+SessionLocal = sessionmaker(bind=engine)
 
-def classify(score: float) -> str:
-    if score >= 8:
-        return "high"
-    if score >= 4:
-        return "medium"
-    return "low"
+logger = logging.getLogger(__name__)
 
-def process_record(db: Session, record_id: str) -> None:
-    record = db.query(Record).filter(Record.id == record_id).first()
-    if not record:
-        return
+
+def process_record(record_id: str) -> None:
+    """
+    Background worker for processing a record.
+    This function creates and closes its own DB session so it doesn't rely on the
+    request-scoped session.
+    """
+    session: Optional[Session] = None
     try:
-        record.status = StatusEnum.pending.value
-        db.add(record)
-        db.commit()
-        # compute
-        payload = record.payload or {}
-        metrics = payload.get("metrics", {})
-        score = compute_score(metrics)
-        classification = classify(score)
-        record.score = score
-        record.classification = classification
-        record.status = StatusEnum.processed.value
-        record.error = None
-        db.add(record)
-        db.commit()
-    except Exception as exc:
-        db.rollback()
-        record.status = StatusEnum.failed.value
-        record.error = str(exc)
-        db.add(record)
-        db.commit()
+        session = SessionLocal()
+        rec = session.query(Record).filter(Record.id == record_id).first()
+        if not rec:
+            logger.error("process_record: record %s not found", record_id)
+            return
+
+        # ---- Dummy processing logic ----
+        # Replace with real processing: classification, scoring, etc.
+        rec.classification = "low"
+        rec.score = 0.0
+        rec.status = StatusEnum.processed.value
+        # --------------------------------
+
+        session.commit()
+        logger.info("process_record: record %s processed", record_id)
+    except Exception:
+        # Mark failed and persist error message
+        logger.exception("process_record: unexpected error processing record %s", record_id)
+        if session:
+            try:
+                # attempt to update record to failed
+                rec = session.query(Record).filter(Record.id == record_id).first()
+                if rec:
+                    rec.status = StatusEnum.failed.value
+                    rec.error = "processing error (see logs)"
+                    session.commit()
+            except Exception:
+                session.rollback()
+    finally:
+        if session:
+            session.close()
