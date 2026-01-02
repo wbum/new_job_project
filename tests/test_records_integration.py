@@ -5,22 +5,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-# Create a shared in-memory engine & session BEFORE importing app so the app's DB bindings can be overridden.
+# Create an in-memory SQLite DB for tests (shared across connections).
 TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+
 engine = create_engine(
-    TEST_SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
+    TEST_SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool
 )
 SessionLocal = sessionmaker(bind=engine)
 
-# Import the application's DB module and swap its engine/sessionmaker to the test ones.
+# Patch the app's database module to use the test engine/sessionmaker before importing the app.
 db_module = importlib.import_module("workflow_service.app.database")
 db_module.engine = engine
 db_module.SessionLocal = SessionLocal
 
-# Import the model module(s) and create tables using the model metadata so the model mapping and
-# the DB engine are consistent in the test environment.
+# Import the model module(s) and create tables using the model metadata.
 models_record = importlib.import_module("workflow_service.app.models.record")
 models_record.Record.__table__.metadata.create_all(bind=engine)
 
@@ -40,9 +38,10 @@ def override_get_db():
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
 
 from fastapi.testclient import TestClient  # noqa: E402
+
+app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
 
@@ -58,6 +57,10 @@ def test_post_record_and_processing_happens():
     data = resp.json()
     assert "id" in data
     record_id = data["id"]
+
+    # Trigger processing explicitly via the process endpoint
+    p = client.post(f"/records/{record_id}/process")
+    assert p.status_code == 200
 
     # poll until processed or timeout (short)
     last = None
