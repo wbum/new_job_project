@@ -1,11 +1,17 @@
 import time
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 import importlib
 
-# Create an in-memory engine & session BEFORE importing app so the app's DB bindings can be overridden.
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+# Create a shared in-memory engine & session BEFORE importing app so the app's DB bindings can be overridden.
 TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(TEST_SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    TEST_SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 SessionLocal = sessionmaker(bind=engine)
 
 # Import the application's DB module and swap its engine/sessionmaker to the test ones.
@@ -16,13 +22,12 @@ db_module.SessionLocal = SessionLocal
 # Import the model module(s) and create tables using the model metadata so the model mapping and
 # the DB engine are consistent in the test environment.
 models_record = importlib.import_module("workflow_service.app.models.record")
-# Use the metadata that the model is registered on
 models_record.Record.__table__.metadata.create_all(bind=engine)
 
 # Now import the app and processing module so they pick up the overridden DB
-from workflow_service.app.main import app
-import workflow_service.app.services.processing as processing_module
-from workflow_service.app.database import get_db
+from workflow_service.app.main import app  # noqa: E402
+import workflow_service.app.services.processing as processing_module  # noqa: E402
+from workflow_service.app.database import get_db  # noqa: E402
 
 # Ensure the processing worker uses the test SessionLocal
 processing_module.SessionLocal = SessionLocal
@@ -37,7 +42,7 @@ def override_get_db():
 
 app.dependency_overrides[get_db] = override_get_db
 
-from fastapi.testclient import TestClient
+from fastapi.testclient import TestClient  # noqa: E402
 client = TestClient(app)
 
 
