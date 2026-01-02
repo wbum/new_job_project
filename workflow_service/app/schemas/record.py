@@ -2,9 +2,9 @@ from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
 
 class RecordCreate(BaseModel):
-    subject: str = Field(..., example="Example subject")
-    metrics: Dict[str, float]
-    metadata: Optional[Dict[str, Any]] = None
+    source: str = Field(..., example="api")
+    category: str = Field(..., example="attendance")
+    payload: Dict[str, Any]
 
 class RecordResponse(BaseModel):
     id: str

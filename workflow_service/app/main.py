@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.records import router as records_router
+from .api.records import router as records_router
 
 app = FastAPI(title="Workflow Automation & Reporting Service")
 

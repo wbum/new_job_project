@@ -1,22 +1,28 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.database import get_db, engine
-from app import models
-from app.models.record import Record, StatusEnum
-from app.schemas.record import RecordCreate, RecordResponse, RecordDetail
-from app.services.processing import process_record
+from ..database import get_db
+from .. import models
+from ..models.record import Record, StatusEnum
+from ..schemas.record import RecordCreate, RecordResponse, RecordDetail
+from ..services.processing import process_record
 
-models.Base.metadata.create_all(bind=engine)
 
 router = APIRouter()
 
 @router.post("/records", response_model=RecordResponse, status_code=201)
 def create_record(payload: RecordCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    rec = Record(payload=payload.dict(), status=StatusEnum.pending.value)
+    rec = Record(
+        source=payload.source,
+        category=payload.category,
+        payload=payload.payload,
+        status=StatusEnum.pending.value,
+    )
     db.add(rec)
     db.commit()
     db.refresh(rec)
-    background_tasks.add_task(process_record, db, rec.id)
+    # Do NOT pass the request-scoped db session to the background task.
+    # Pass only the record id and let the background worker open its own session.
+    background_tasks.add_task(process_record, rec.id)
     return {"id": rec.id, "status": rec.status}
 
 @router.get("/records/{record_id}", response_model=RecordDetail)
