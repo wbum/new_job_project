@@ -1,6 +1,7 @@
 import time
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import importlib
 
 # Create an in-memory engine & session BEFORE importing app so the app's DB bindings can be overridden.
 TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -8,15 +9,15 @@ engine = create_engine(TEST_SQLALCHEMY_DATABASE_URL, connect_args={"check_same_t
 SessionLocal = sessionmaker(bind=engine)
 
 # Import the application's DB module and swap its engine/sessionmaker to the test ones.
-import importlib
 db_module = importlib.import_module("workflow_service.app.database")
-# override engine and SessionLocal used by the app
 db_module.engine = engine
 db_module.SessionLocal = SessionLocal
-Base = getattr(db_module, "Base")
 
-# Now create tables on the in-memory engine
-Base.metadata.create_all(bind=engine)
+# Import the model module(s) and create tables using the model metadata so the model mapping and
+# the DB engine are consistent in the test environment.
+models_record = importlib.import_module("workflow_service.app.models.record")
+# Use the metadata that the model is registered on
+models_record.Record.__table__.metadata.create_all(bind=engine)
 
 # Now import the app and processing module so they pick up the overridden DB
 from workflow_service.app.main import app
