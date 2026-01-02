@@ -4,7 +4,7 @@ from sqlalchemy import Column, String, DateTime, Float, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.types import JSON
 from sqlalchemy.sql import func
-from app.database import Base
+from ..database import Base
 
 class StatusEnum(str, enum.Enum):
     pending = "pending"

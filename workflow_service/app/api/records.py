@@ -1,12 +1,11 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.database import get_db, engine
-from app import models
-from app.models.record import Record, StatusEnum
-from app.schemas.record import RecordCreate, RecordResponse, RecordDetail
-from app.services.processing import process_record
+from ..database import get_db, engine
+from .. import models
+from ..models.record import Record, StatusEnum
+from ..schemas.record import RecordCreate, RecordResponse, RecordDetail
+from ..services.processing import process_record
 
-models.Base.metadata.create_all(bind=engine)
 
 router = APIRouter()
 
