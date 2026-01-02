@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.record import Record
 from app.schemas.record import RecordCreate, RecordRead
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -23,5 +25,6 @@ def create_record(record_input: RecordCreate, db: Session = Depends(get_db)):
         db.refresh(new_record)
         return new_record
     except Exception as e:
+        logger.error(f"Error creating record: {e}", exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="An error occurred while creating the record")
