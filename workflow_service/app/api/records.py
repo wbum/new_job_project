@@ -1,52 +1,30 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.database import get_db, engine
-from app import models
-from app.models.record import Record, StatusEnum
-from app.schemas.record import RecordCreate, RecordResponse, RecordDetail
-from app.services.processing import process_record
+from app.database import get_db
+from app.models.record import Record
+from app.schemas.record import RecordCreate, RecordRead
+import logging
 
-models.Base.metadata.create_all(bind=engine)
-
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.post("/records", response_model=RecordResponse, status_code=201)
-def create_record(payload: RecordCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    rec = Record(payload=payload.dict(), status=StatusEnum.pending.value)
-    db.add(rec)
-    db.commit()
-    db.refresh(rec)
-    background_tasks.add_task(process_record, db, rec.id)
-    return {"id": rec.id, "status": rec.status}
 
-@router.get("/records/{record_id}", response_model=RecordDetail)
-def get_record(record_id: str, db: Session = Depends(get_db)):
-    rec = db.query(Record).filter(Record.id == record_id).first()
-    if not rec:
-        raise HTTPException(status_code=404, detail="Record not found")
-    return {
-        "id": rec.id,
-        "payload": rec.payload,
-        "status": rec.status,
-        "classification": rec.classification,
-        "score": rec.score,
-        "error": rec.error,
-    }
-
-@router.get("/reports/summary")
-def get_summary(db: Session = Depends(get_db)):
-    total = db.query(Record).count()
-    processed = db.query(Record).filter(Record.status == StatusEnum.processed.value).count()
-    failed = db.query(Record).filter(Record.status == StatusEnum.failed.value).count()
-    # counts by classification
-    counts = {}
-    for cls in ["high", "medium", "low"]:
-        counts[cls] = db.query(Record).filter(Record.classification == cls).count()
-    avg_score = db.query(Record).filter(Record.score != None).with_entities(func.avg(Record.score)).scalar()
-    return {
-        "total": total,
-        "processed": processed,
-        "failed": failed,
-        "by_classification": counts,
-        "avg_score": float(avg_score) if avg_score is not None else None,
-    }
+@router.post("/records", response_model=RecordRead, status_code=201)
+def create_record(record_input: RecordCreate, db: Session = Depends(get_db)):
+    """Create a new record with the provided source, category, and payload."""
+    try:
+        # Create new record
+        new_record = Record(
+            source=record_input.source,
+            category=record_input.category,
+            payload=record_input.payload,
+            status='pending'
+        )
+        db.add(new_record)
+        db.commit()
+        db.refresh(new_record)
+        return new_record
+    except Exception as e:
+        logger.error(f"Error creating record: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="An error occurred while creating the record")

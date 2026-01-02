@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from app.main import app
-from app.database import Base, engine, SessionLocal
-from app.models.record import Record, StatusEnum
+from app.database import Base, engine
+from app.models.record import Record
 
 client = TestClient(app)
 
@@ -12,15 +12,13 @@ def setup_module(module):
 def teardown_module(module):
     Base.metadata.drop_all(bind=engine)
 
-def test_create_and_process_record():
-    payload = {"subject": "Test", "metrics": {"severity": 7, "impact": 6, "urgency": 2}}
+def test_create_record():
+    payload = {"source": "test-source", "category": "test-category", "payload": {"key": "value"}}
     r = client.post("/records", json=payload)
     assert r.status_code == 201
     data = r.json()
     assert "id" in data
-    record_id = data["id"]
-    # wait a short moment for background task to run (BackgroundTasks run synchronously in TestClient)
-    r2 = client.get(f"/records/{record_id}")
-    assert r2.status_code == 200
-    detail = r2.json()
-    assert detail["status"] in [StatusEnum.processed.value, StatusEnum.pending.value, StatusEnum.failed.value]
+    assert data["status"] == "pending"
+    assert data["source"] == "test-source"
+    assert data["category"] == "test-category"
+    assert data["payload"] == {"key": "value"}
