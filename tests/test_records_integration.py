@@ -1,1 +1,70 @@
-<PUT THE WHOLE CONTENT FROM THE FIRST BLOCK ABOVE HERE>
+import time
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# Create an in-memory engine & session BEFORE importing app so the app's DB bindings can be overridden.
+TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+engine = create_engine(TEST_SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine)
+
+# Import the application's DB module and swap its engine/sessionmaker to the test ones.
+import importlib
+db_module = importlib.import_module("workflow_service.app.database")
+# override engine and SessionLocal used by the app
+db_module.engine = engine
+db_module.SessionLocal = SessionLocal
+Base = getattr(db_module, "Base")
+
+# Now create tables on the in-memory engine
+Base.metadata.create_all(bind=engine)
+
+# Now import the app and processing module so they pick up the overridden DB
+from workflow_service.app.main import app
+import workflow_service.app.services.processing as processing_module
+from workflow_service.app.database import get_db
+
+# Ensure the processing worker uses the test SessionLocal
+processing_module.SessionLocal = SessionLocal
+
+# Dependency override to use test sessions
+def override_get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+app.dependency_overrides[get_db] = override_get_db
+
+from fastapi.testclient import TestClient
+client = TestClient(app)
+
+
+def test_post_record_and_processing_happens():
+    payload = {
+        "source": "test",
+        "category": "integration",
+        "payload": {"name": "IntegrationTest", "value": 1},
+    }
+
+    resp = client.post("/records", json=payload)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert "id" in data
+    record_id = data["id"]
+
+    # poll until processed or timeout (short)
+    last = None
+    for _ in range(25):  # ~5 seconds max
+        r = client.get(f"/records/{record_id}")
+        assert r.status_code == 200
+        last = r.json()
+        if last.get("status") == "processed":
+            break
+        time.sleep(0.2)
+
+    assert last is not None
+    assert last["status"] == "processed"
+    # Basic checks on processing side-effect (our dummy processor sets these values)
+    assert "classification" in last
+    assert "score" in last
