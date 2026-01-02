@@ -1,6 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
-from ..database import get_db, engine
+from ..database import get_db
 from .. import models
 from ..models.record import Record, StatusEnum
 from ..schemas.record import RecordCreate, RecordResponse, RecordDetail
@@ -11,7 +11,12 @@ router = APIRouter()
 
 @router.post("/records", response_model=RecordResponse, status_code=201)
 def create_record(payload: RecordCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    rec = Record(payload=payload.dict(), status=StatusEnum.pending.value)
+    rec = Record(
+        source=payload.source,
+        category=payload.category,
+        payload=payload.payload,
+        status=StatusEnum.pending.value,
+    )
     db.add(rec)
     db.commit()
     db.refresh(rec)
