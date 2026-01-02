@@ -1,14 +1,39 @@
-from fastapi.testclient import TestClient
+# workflow_service/tests/test_processing.py
 import time
+import importlib
 
-# Import app and DB get_db just like the repo's tests do.
-from app.main import app  # keep legacy import used by existing tests
-from app.database import Base, get_db, engine, SessionLocal  # ensure these exist
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-# Create tables in the test (file-backed) DB if necessary. If engine is SQLite in-memory this is harmless.
-Base.metadata.create_all(bind=engine)
+# Create a shared in-memory engine so all connections (app, test, background worker)
+# see the same database.
+TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+engine = create_engine(
+    TEST_SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+SessionLocal = sessionmaker(bind=engine)
 
-# Override get_db for tests to ensure clean sessions per test
+# Patch the app's database module to use the test engine/sessionmaker before importing the app.
+db_module = importlib.import_module("workflow_service.app.database")
+db_module.engine = engine
+db_module.SessionLocal = SessionLocal
+
+# Ensure the models' metadata is created in the test engine (so tables and columns exist).
+models_record = importlib.import_module("workflow_service.app.models.record")
+models_record.Record.__table__.metadata.create_all(bind=engine)
+
+# Now import the FastAPI app and processing module so they pick up the test DB.
+from workflow_service.app.main import app  # noqa: E402
+import workflow_service.app.services.processing as processing_module  # noqa: E402
+from workflow_service.app.database import get_db  # noqa: E402
+
+# Ensure the background worker uses the test SessionLocal
+processing_module.SessionLocal = SessionLocal
+
+# Override get_db dependency to yield test sessions
 def override_get_db():
     db = SessionLocal()
     try:
@@ -17,6 +42,8 @@ def override_get_db():
         db.close()
 
 app.dependency_overrides[get_db] = override_get_db
+
+from fastapi.testclient import TestClient  # noqa: E402
 client = TestClient(app)
 
 
