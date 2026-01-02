@@ -1,19 +1,39 @@
-from typing import Any, Dict, Optional
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field, root_validator, validator
+
 
 class RecordCreate(BaseModel):
-    source: str = Field(..., example="api")
-    category: str = Field(..., example="attendance")
-    payload: Dict[str, Any]
+    source: str = Field(..., min_length=1, max_length=100)
+    category: str = Field(..., min_length=1, max_length=100)
+    payload: Dict[str, Any] = Field(...)
 
-class RecordResponse(BaseModel):
-    id: str
-    status: str
+    @validator("source", "category")
+    def not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("must not be blank")
+        return v
 
-class RecordDetail(BaseModel):
+
+class RecordRead(BaseModel):
     id: str
-    payload: Dict[str, Any]
+    created_at: datetime
     status: str
+    source: str
+    category: str
+    payload: Dict[str, Any]
+    result: Optional[Dict[str, Any]] = None
     classification: Optional[str] = None
     score: Optional[float] = None
     error: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+
+class RecordList(BaseModel):
+    items: List[RecordRead]
+    count: int

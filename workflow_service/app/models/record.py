@@ -1,41 +1,38 @@
 from __future__ import annotations
+
 import uuid
 from datetime import datetime
-from enum import Enum as PyEnum
-from typing import Optional
-
-from sqlalchemy import Column, String, DateTime, Enum, JSON, Text
+from sqlalchemy import Column, Index, String, DateTime, Text, Float
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..database import Base  # adjust if Base is defined elsewhere
+from ..database import Base
 
 
-class StatusEnum(PyEnum):
-    pending = "pending"
-    processed = "processed"
-    failed = "failed"
+def gen_uuid() -> str:
+    return str(uuid.uuid4())
 
 
 class Record(Base):
     __tablename__ = "records"
 
-    # primary key as uuid string
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=gen_uuid)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    source: Mapped[str] = mapped_column(String(100), nullable=False)
+    category: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    status: Mapped[str] = mapped_column(String(32), default=StatusEnum.pending.value, nullable=False)
+    # Store JSON as text for sqlite. Endpoints/services will json.dumps / json.loads as needed.
+    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    result: Mapped[str] = mapped_column(Text, nullable=True)
 
-    # fields required by the API/schema
-    source: Mapped[str] = mapped_column(String(128), nullable=False)
-    category: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Convenience denormalized columns for tests/queries
+    classification: Mapped[str] = mapped_column(String(20), nullable=True)
+    score: Mapped[float] = mapped_column(Float, nullable=True)
 
-    # free-form JSON payload
-    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    error: Mapped[str] = mapped_column(Text, nullable=True)
 
-    # optional outcome fields
-    classification: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    score: Mapped[Optional[float]] = mapped_column("score", String(64), nullable=True)  # change to Float if desired
-    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    def __repr__(self) -> str:
-        return f"<Record id={self.id} status={self.status} source={self.source} category={self.category}>"
+    __table_args__ = (
+        Index("ix_records_created_at", "created_at"),
+        Index("ix_records_status", "status"),
+        Index("ix_records_category", "category"),
+    )
