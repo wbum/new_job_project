@@ -1,10 +1,15 @@
 from fastapi import FastAPI
-from .api.records import router as records_router
+from .api import records
+from .api import health  # existing
+from .api import reports  # new
 
-app = FastAPI(title="Workflow Automation & Reporting Service")
+from .database import engine, Base
 
-app.include_router(records_router, prefix="", tags=["records"]) 
+app = FastAPI(title="Workflow Service")
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+# Development convenience: create tables if missing
+Base.metadata.create_all(bind=engine)
+
+app.include_router(health.router)
+app.include_router(records.router)
+app.include_router(reports.router)
