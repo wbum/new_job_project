@@ -25,28 +25,37 @@ def _fetch_record(db: Session, record_id: str) -> Record:
 def _to_read_model(rec: Record) -> RecordRead:
     payload = {}
     try:
-        payload = json.loads(rec.payload)
+        payload = json.loads(getattr(rec, "payload", "{}"))
     except Exception:
         payload = {}
 
     result = None
-    if rec.result:
+    raw_result = getattr(rec, "result", None)
+    if raw_result:
         try:
-            result = json.loads(rec.result)
+            result = json.loads(raw_result)
         except Exception:
             result = None
 
+    # use getattr for optional fields so missing attributes don't raise
+    classification = getattr(rec, "classification", None)
+    score = getattr(rec, "score", None)
+    error = getattr(rec, "error", None)
+
+    # ensure created_at is present (some model versions may use created_at or created)
+    created_at = getattr(rec, "created_at", None)
+
     return RecordRead(
         id=rec.id,
-        created_at=rec.created_at,
+        created_at=created_at,
         status=rec.status,
         source=rec.source,
         category=rec.category,
         payload=payload,
         result=result,
-        classification=rec.classification,
-        score=rec.score,
-        error=rec.error,
+        classification=classification,
+        score=score,
+        error=error,
     )
 
 
