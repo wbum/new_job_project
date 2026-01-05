@@ -1,13 +1,27 @@
 # new_job_project
-Project for a new possible job.
-curl -s -X POST http://127.0.0.1:8000/records \
-  -H "Content-Type: application/json" \
-  -d '{"source":"api","category":"attendance","payload":{"name":"Alice","priority":3}}' | jq .
-curl -s http://127.0.0.1:8000/records/<id> | jq .
-curl -s -X POST http://127.0.0.1:8000/records/<id>/process | jq .
-curl -s http://127.0.0.1:8000/reports/summary | jq .
-cat >> README.md <<'EX'
-curl -s http://127.0.0.1:8000/reports/summary | jq .
-curl -s "http://127.0.0.1:8000/reports/summary?status=processed&category=attendance" | jq .
-curl -s "http://127.0.0.1:8000/records?status=pending&limit=50&offset=0" | jq .
-curl -s "http://127.0.0.1:8000/records?status=pending&limit=50&offset=0" | jq .
+# Workflow Automation & Reporting API
+
+Status: Active development
+
+A FastAPI backend that ingests records, persists them to SQLite via SQLAlchemy, processes them through explicit state transitions (pending → processed/failed), and exposes operational reporting (summary counts by status/category).
+
+## Tech Stack
+- Python, FastAPI, Uvicorn
+- SQLite, SQLAlchemy
+- Pydantic (validation)
+- pytest (tests)
+
+## Features
+- Health check endpoint
+- Create and retrieve records
+- Stateful processing with idempotency (re-process returns a conflict)
+- Summary reporting (counts by status/category) + basic filters
+- Test coverage for processing logic and failure modes
+
+## Quick Start
+
+### 1) Create and activate a virtual environment
+```bash
+python -m venv .venv
+source .venv/bin/activate  # macOS/Linux
+# .venv\Scripts\activate   # Windows
