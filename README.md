@@ -1,4 +1,3 @@
-# new_job_project
 # Workflow Automation & Reporting API
 
 Status: Active development
