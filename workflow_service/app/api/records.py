@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import datetime
 import json
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -90,7 +91,6 @@ def list_records(
         )
     
     # Parse dates
-    from datetime import datetime
     parsed_created_after = None
     parsed_created_before = None
     
