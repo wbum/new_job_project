@@ -24,9 +24,11 @@ def process_record(record_id: str) -> None:
         session = SessionLocal()
         rec = session.query(Record).filter(Record.id == record_id).first()
         if not rec:
-            logger.error("process_record: record %s not found", record_id)
+            logger.error(f"record_id={record_id} error=record_not_found")
             return
 
+        old_status = rec.status
+        
         # Attempt to load payload safely (support JSON-string or already-parsed dict)
         payload = {}
         try:
@@ -35,10 +37,11 @@ def process_record(record_id: str) -> None:
             else:
                 payload = rec.payload or {}
         except Exception:
-            logger.exception("process_record: invalid payload for record %s", record_id)
+            logger.exception(f"record_id={record_id} old_status={old_status} error=invalid_payload")
             rec.status = StatusEnum.failed.value
             rec.error = "invalid payload"
             session.commit()
+            logger.info(f"record_id={record_id} old_status={old_status} new_status={rec.status} error_reason=invalid_payload")
             return
 
         # Simple validation rule used by tests: if `priority` exists it must be numeric
@@ -47,10 +50,11 @@ def process_record(record_id: str) -> None:
                 # allow numeric strings that parse to float
                 float(payload["priority"])
             except Exception:
-                logger.info("process_record: invalid priority for record %s", record_id)
+                logger.info(f"record_id={record_id} old_status={old_status} error=invalid_priority")
                 rec.status = StatusEnum.failed.value
                 rec.error = "invalid priority"
                 session.commit()
+                logger.info(f"record_id={record_id} old_status={old_status} new_status={rec.status} error_reason=invalid_priority")
                 return
 
         # ---- Dummy processing logic (success) ----
@@ -60,17 +64,19 @@ def process_record(record_id: str) -> None:
         # ------------------------------------------
 
         session.commit()
-        logger.info("process_record: record %s processed", record_id)
+        logger.info(f"record_id={record_id} old_status={old_status} new_status={rec.status}")
     except Exception:
         # Mark failed and persist error message
-        logger.exception("process_record: unexpected error processing record %s", record_id)
+        logger.exception(f"record_id={record_id} error=unexpected_processing_error")
         if session:
             try:
                 rec = session.query(Record).filter(Record.id == record_id).first()
                 if rec:
+                    old_status = rec.status
                     rec.status = StatusEnum.failed.value
                     rec.error = "processing error (see logs)"
                     session.commit()
+                    logger.info(f"record_id={record_id} old_status={old_status} new_status={rec.status} error_reason=processing_error")
             except Exception:
                 session.rollback()
     finally:
