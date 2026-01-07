@@ -142,6 +142,7 @@ def post_process_record(record_id: str, db: Session = Depends(get_db)):
     # Run processing synchronously (service takes care of sessions & persistence)
     processing.process_record(rec.id)
 
-    # Refresh record from DB to return updated state
+    # Refresh record from DB to return updated state (expire existing session first)
+    db.expire_all()
     rec = db.query(Record).filter(Record.id == record_id).first()
     return _to_read_model(rec)
