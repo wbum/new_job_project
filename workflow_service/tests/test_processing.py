@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
-from app.main import app
-from app.database import Base, engine, SessionLocal
-from app.models.record import Record, StatusEnum
+from workflow_service.app.main import app
+from workflow_service.app.database import Base, engine, SessionLocal
+from workflow_service.app.models.record import Record, StatusEnum
 
 client = TestClient(app)
 
@@ -13,7 +13,12 @@ def teardown_module(module):
     Base.metadata.drop_all(bind=engine)
 
 def test_create_and_process_record():
-    payload = {"subject": "Test", "metrics": {"severity": 7, "impact": 6, "urgency": 2}}
+    # send payload matching the API schema (source, category, payload)
+    payload = {
+        "source": "t",
+        "category": "test",
+        "payload": {"subject": "Test", "metrics": {"severity": 7, "impact": 6, "urgency": 2}},
+    }
     r = client.post("/records", json=payload)
     assert r.status_code == 201
     data = r.json()
