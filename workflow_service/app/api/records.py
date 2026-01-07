@@ -11,6 +11,7 @@ from ..database import get_db
 from ..models.record import Record
 from ..schemas.record import RecordCreate, RecordRead
 from ..services import processing, reporting
+from ..exceptions import NotFoundError, ConflictError
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ router = APIRouter()
 def _fetch_record(db: Session, record_id: str) -> Record:
     rec = db.query(Record).filter(Record.id == record_id).first()
     if not rec:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="record not found")
+        raise NotFoundError(message="record not found")
     return rec
 
 
@@ -136,11 +137,12 @@ def post_process_record(record_id: str, db: Session = Depends(get_db)):
     rec = _fetch_record(db, record_id)
 
     if rec.status != "pending":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="record is not pending")
+        raise ConflictError(message="record is not pending", code="ALREADY_PROCESSED")
 
     # Run processing synchronously (service takes care of sessions & persistence)
     processing.process_record(rec.id)
 
-    # Refresh record from DB to return updated state
+    # Refresh record from DB to return updated state (expire existing session first)
+    db.expire_all()
     rec = db.query(Record).filter(Record.id == record_id).first()
     return _to_read_model(rec)

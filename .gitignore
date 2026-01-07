@@ -6,3 +6,6 @@ __pycache__/
 # Virtualenvs
 .venv/
 venv/
+
+# Database files
+*.db
