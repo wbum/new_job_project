@@ -1,5 +1,7 @@
 """Error response schemas."""
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -8,7 +10,7 @@ class ErrorBody(BaseModel):
 
     code: str
     message: str
-    details: dict | None = None
+    details: Any = None  # Can be dict, list, or None depending on error type
 
 
 class ErrorResponse(BaseModel):

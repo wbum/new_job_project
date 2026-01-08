@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     APP_ENV: str = "dev"  # dev, staging, prod
     LOG_LEVEL: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 
+    # Security Configuration
+    API_KEY: str | None = None  # API key for write operations (None = open access for dev)
+
     class Config:
         env_file = ".env"
 

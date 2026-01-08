@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -131,6 +131,37 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         {"event": "validation.error", "details": details, "request_id": request_id}, level="warning"
     )
     return JSONResponse(status_code=422, content=body)
+
+
+# HTTPException -> standardized error response
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    request_id = getattr(request.state, "request_id", None)
+    # Map common HTTP status codes to error codes
+    error_code_map = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        409: "CONFLICT",
+        422: "VALIDATION_ERROR",
+        500: "INTERNAL_ERROR",
+    }
+    error_code = error_code_map.get(exc.status_code, "HTTP_ERROR")
+    body = ErrorResponse(
+        error=ErrorBody(code=error_code, message=exc.detail, details=None),
+        request_id=request_id,
+    ).dict()
+    _log_json(
+        {
+            "event": "http.error",
+            "status_code": exc.status_code,
+            "error": body["error"],
+            "request_id": request_id,
+        },
+        level="warning",
+    )
+    return JSONResponse(status_code=exc.status_code, content=body)
 
 
 # catch-all for unexpected errors -> 500 but safe response

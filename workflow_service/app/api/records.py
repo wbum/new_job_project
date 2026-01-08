@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from ..core.security import verify_api_key
 from ..database import get_db
 from ..models.record import Record
 from ..schemas.record import RecordCreate, RecordRead
@@ -60,7 +61,10 @@ def _to_read_model(rec: Record) -> RecordRead:
 
 @router.post("/records", response_model=RecordRead, status_code=status.HTTP_201_CREATED)
 def create_record(
-    payload: RecordCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+    payload: RecordCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _api_key: str = Depends(verify_api_key),
 ):
     rec = Record(
         source=payload.source,
@@ -141,7 +145,9 @@ def get_record(record_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/records/{record_id}/process", response_model=RecordRead)
-def post_process_record(record_id: str, db: Session = Depends(get_db)):
+def post_process_record(
+    record_id: str, db: Session = Depends(get_db), _api_key: str = Depends(verify_api_key)
+):
     rec = _fetch_record(db, record_id)
 
     if rec.status != "pending":

@@ -4,7 +4,9 @@ This runbook provides operational guidance for troubleshooting and maintaining t
 
 ## Table of Contents
 - [Common Issues](#common-issues)
+- [Security & Authentication](#security--authentication)
 - [Monitoring & Logs](#monitoring--logs)
+- [Request Tracing](#request-tracing)
 - [Local Reproduction](#local-reproduction)
 - [Database Operations](#database-operations)
 - [Validation with curl](#validation-with-curl)
@@ -180,6 +182,89 @@ Records stuck in "pending" status or transition to "failed" status.
 
 ---
 
+## Security & Authentication
+
+### API Key Authentication
+
+Write operations (POST, PUT, PATCH, DELETE) are protected by API key authentication.
+
+**How to validate auth is working:**
+
+1. **Check if API key is configured:**
+   ```bash
+   echo $API_KEY
+   # If empty, auth is disabled (dev mode)
+   # If set, auth is enabled (production mode)
+   ```
+
+2. **Test without API key (should fail if API_KEY is set):**
+   ```bash
+   curl -X POST http://localhost:8000/records \
+     -H "Content-Type: application/json" \
+     -d '{"source": "test", "category": "test", "payload": {}}'
+
+   # Expected response if auth enabled:
+   # {
+   #   "error": {
+   #     "code": "UNAUTHORIZED",
+   #     "message": "API key required"
+   #   },
+   #   "request_id": "..."
+   # }
+   ```
+
+3. **Test with correct API key (should succeed):**
+   ```bash
+   curl -X POST http://localhost:8000/records \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: $API_KEY" \
+     -d '{"source": "test", "category": "test", "payload": {}}'
+
+   # Expected: 201 Created
+   ```
+
+4. **Test with wrong API key (should fail):**
+   ```bash
+   curl -X POST http://localhost:8000/records \
+     -H "Content-Type: application/json" \
+     -H "X-API-Key: wrong-key" \
+     -d '{"source": "test", "category": "test", "payload": {}}'
+
+   # Expected response:
+   # {
+   #   "error": {
+   #     "code": "UNAUTHORIZED",
+   #     "message": "Invalid API key"
+   #   },
+   #   "request_id": "..."
+   # }
+   ```
+
+**Common auth failure symptoms:**
+
+1. **401 Unauthorized - Missing API key**
+   - Symptom: Write operations fail with "API key required"
+   - Fix: Include `X-API-Key` header with valid key
+
+2. **401 Unauthorized - Invalid API key**
+   - Symptom: Write operations fail with "Invalid API key"
+   - Fix: Verify `API_KEY` environment variable matches header value
+
+3. **Auth works locally but fails in production**
+   - Symptom: Local writes succeed, production writes fail
+   - Fix: Ensure `API_KEY` is set in production environment
+
+**Generating a secure API key:**
+```bash
+# Generate a cryptographically secure random key
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Example output:
+# vK3pL9mN2xQ8wR7tY6uI5oP4sA1dF0gH3jK2lZ9nM8bV
+```
+
+---
+
 ## Monitoring & Logs
 
 ### Log Format
@@ -201,6 +286,7 @@ The service outputs structured JSON logs to stdout:
 - `request.end` - Request completed
 - `domain.error` - Business logic error
 - `validation.error` - Request validation failed
+- `http.error` - HTTP exception (4xx/5xx)
 - `unhandled exception` - Unexpected error (Python traceback follows)
 
 ### Log Locations
@@ -220,6 +306,91 @@ grep '"event":"domain.error"' logs/app.log | jq -r '.error.code' | sort | uniq -
 # Track specific request flow
 grep '"request_id":"<id>"' logs/app.log | jq .
 ```
+
+---
+
+## Request Tracing
+
+### How to use request_id to trace issues
+
+Every request is assigned a unique `request_id` that flows through the entire request lifecycle, making it easy to trace a single request from start to finish.
+
+**1. Obtain the request_id from the response:**
+
+Every API response includes the `X-Request-ID` header:
+```bash
+curl -i http://localhost:8000/records
+
+# Response headers will include:
+# X-Request-ID: 7f3a4b2c-8d9e-4f1a-b2c3-d4e5f6a7b8c9
+```
+
+Error responses include `request_id` in the JSON body:
+```json
+{
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "record not found"
+  },
+  "request_id": "7f3a4b2c-8d9e-4f1a-b2c3-d4e5f6a7b8c9"
+}
+```
+
+**2. Provide your own request_id for tracking:**
+
+You can send a custom request ID to make tracing easier:
+```bash
+curl -H "X-Request-ID: my-debug-request-001" http://localhost:8000/records
+```
+
+The same ID will be used in all logs and returned in the response.
+
+**3. Trace a request through logs:**
+
+Using the `request_id`, find all log entries for that request:
+
+```bash
+# View all events for a specific request
+grep '"request_id":"7f3a4b2c-8d9e-4f1a-b2c3-d4e5f6a7b8c9"' logs/app.log | jq .
+
+# Example output shows the full request lifecycle:
+# {"event":"request.start","method":"POST","path":"/records","request_id":"7f3a..."}
+# {"event":"request.end","method":"POST","path":"/records","status_code":201,"duration_ms":45,"request_id":"7f3a..."}
+```
+
+**4. Troubleshoot errors with request_id:**
+
+When a user reports an error, ask for the `request_id` from the error response:
+
+```bash
+# Find the error details
+grep '"request_id":"<request_id>"' logs/app.log | jq 'select(.event == "http.error" or .event == "domain.error")'
+
+# Look for exceptions
+grep '"request_id":"<request_id>"' logs/app.log | grep -A 10 "unhandled exception"
+```
+
+**5. Correlate multiple requests:**
+
+For batch operations or workflows, use custom `X-Request-ID` with a common prefix:
+```bash
+# Upload batch with related IDs
+curl -H "X-Request-ID: batch-001-item-1" ...
+curl -H "X-Request-ID: batch-001-item-2" ...
+curl -H "X-Request-ID: batch-001-item-3" ...
+
+# Find all related requests
+grep '"request_id":"batch-001-' logs/app.log | jq .
+```
+
+**Best practices:**
+- Always capture `request_id` from error responses before reporting issues
+- Use custom request IDs for debugging sessions (e.g., `debug-yourname-001`)
+- Include request_id in support tickets
+- Monitor logs in real-time during troubleshooting:
+  ```bash
+  tail -f logs/app.log | grep '"request_id":"<id>"' | jq .
+  ```
 
 ---
 

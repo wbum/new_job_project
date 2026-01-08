@@ -152,6 +152,8 @@ alembic upgrade head
 | `APP_ENV` | `dev` | Environment (dev, staging, prod) |
 | `PROJECT_NAME` | `workflow_service` | Project name for logging |
 | `APP_VERSION` | `0.1.0` | Application version |
+| `API_KEY` | `None` | API key for write operations (if not set, write endpoints are open - dev mode only) |
+| `GIT_COMMIT` | `unknown` | Git commit SHA (typically set by CI/CD pipeline) |
 
 ### Database URLs
 
@@ -168,13 +170,120 @@ DATABASE_URL=postgresql://username:password@host:port/database_name
 DATABASE_URL=postgresql://user:pass@db.example.com:5432/workflow_db?pool_size=10&max_overflow=20
 ```
 
+## Security
+
+### API Key Authentication
+
+Write operations (POST, PUT, PATCH, DELETE) are protected by API key authentication.
+
+**Development Mode (no API key required):**
+```bash
+# If API_KEY is not set, write endpoints are open
+# This is suitable for local development only
+```
+
+**Production Mode (API key required):**
+```bash
+# Generate a secure API key
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# Set in environment
+export API_KEY=your-generated-api-key-here
+
+# Or in .env file
+API_KEY=your-generated-api-key-here
+```
+
+**Using the API with authentication:**
+
+Read operations (GET) are always public:
+```bash
+curl http://localhost:8000/records
+curl http://localhost:8000/health
+```
+
+Write operations require the `X-API-Key` header when API_KEY is configured:
+```bash
+# Create a record
+curl -X POST http://localhost:8000/records \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
+  -d '{"source": "api", "category": "test", "payload": {"key": "value"}}'
+
+# Process a record
+curl -X POST http://localhost:8000/records/{record_id}/process \
+  -H "X-API-Key: your-api-key-here"
+```
+
+**Error responses:**
+- `401 Unauthorized`: Missing or invalid API key
+- All errors include `request_id` for tracing
+
+### Request Correlation
+
+Every request is assigned a unique `request_id` for request tracing:
+
+- **Automatic generation**: If not provided, a UUID is generated
+- **Client propagation**: Send `X-Request-ID` header to use your own ID
+- **Response header**: `X-Request-ID` is always returned in the response
+- **Logging**: All log entries include the `request_id` for correlation
+
+Example:
+```bash
+# Let the server generate a request ID
+curl http://localhost:8000/health
+
+# Provide your own request ID
+curl -H "X-Request-ID: my-trace-123" http://localhost:8000/health
+```
+
+The response will include the header:
+```
+X-Request-ID: my-trace-123
+```
+
+All log entries for this request will include `"request_id": "my-trace-123"`.
+
 ## API Endpoints
 
 ### Health Check
 ```bash
 GET /health
 ```
-Returns service health status.
+Returns service health status with database connectivity check.
+
+**Response (healthy):**
+```json
+{
+  "status": "healthy",
+  "database": "connected"
+}
+```
+
+**Response (unhealthy):**
+- Status: `503 Service Unavailable`
+```json
+{
+  "status": "unhealthy",
+  "database": "disconnected",
+  "error": "error details"
+}
+```
+
+### Version Information
+```bash
+GET /version
+```
+Returns application version, git commit, and environment.
+
+**Response:**
+```json
+{
+  "version": "0.1.0",
+  "commit": "abc123def456",
+  "environment": "prod"
+}
+```
 
 ### Records
 
