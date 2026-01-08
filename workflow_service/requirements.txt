@@ -1,6 +1,7 @@
 # Core dependencies
 fastapi
 uvicorn[standard]
+gunicorn
 sqlalchemy
 pydantic
 pydantic-settings

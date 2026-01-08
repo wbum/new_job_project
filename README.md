@@ -31,6 +31,31 @@ The API will be available at `http://localhost:8000`
 
 Interactive API docs: `http://localhost:8000/docs`
 
+## Live Demo
+
+**🚀 Try it live:** The API is deployed and ready to explore!
+
+- **Base URL**: `https://workflow-service-XXXX.onrender.com` _(will be updated after deployment)_
+- **Interactive API Docs**: `https://workflow-service-XXXX.onrender.com/docs`
+- **Health Check**: `https://workflow-service-XXXX.onrender.com/health`
+
+### Live Examples
+
+```bash
+# Check service health
+curl https://workflow-service-XXXX.onrender.com/health
+
+# Create a record (will be updated with actual URL)
+curl -X POST https://workflow-service-XXXX.onrender.com/records \
+  -H "Content-Type: application/json" \
+  -d '{"source":"demo","category":"example","payload":{"message":"Hello from live demo!"}}'
+
+# Get summary report
+curl https://workflow-service-XXXX.onrender.com/reports/summary
+```
+
+**Note**: The free tier may take 30-60 seconds to wake up from sleep on first request.
+
 ## Documentation
 
 For detailed API documentation, examples, and development guide, see [workflow_service/README.md](workflow_service/README.md)

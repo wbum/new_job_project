@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import ASGIApp
@@ -90,6 +91,19 @@ app = FastAPI(title="Workflow Service", version=APP_VERSION)
 
 # Development convenience: create tables if missing
 Base.metadata.create_all(bind=engine)
+
+# CORS configuration - restrict to known origins in production
+# For local dev, allow localhost. For production, set ALLOWED_ORIGINS env var
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8000").split(
+    ","
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # add logging middleware and exception handlers
 app.add_middleware(RequestLoggingMiddleware)

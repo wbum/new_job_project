@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: workflow-service
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: pip install -r workflow_service/requirements.txt
+    startCommand: gunicorn workflow_service.app.main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./workflow.db
+      - key: LOG_LEVEL
+        value: INFO
+      - key: APP_ENV
+        value: production
+      - key: PYTHONPATH
+        value: /opt/render/project/src
