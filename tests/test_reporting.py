@@ -1,10 +1,10 @@
 import importlib
 import time
+
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from fastapi.testclient import TestClient
 
 # Setup an in-memory SQLite DB shared by connections (StaticPool)
 TEST_SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -23,14 +23,13 @@ models_record = importlib.import_module("workflow_service.app.models.record")
 models_record.Record.__table__.metadata.create_all(bind=engine)
 
 # Import app and services
-from workflow_service.app.main import app  # noqa: E402
 from workflow_service.app.database import get_db  # noqa: E402
+from workflow_service.app.main import app  # noqa: E402
 
 # Ensure reporting service uses the test session if needed
-reporting_module = importlib.import_module("workflow_service.app.services.reporting")
 processing_module = importlib.import_module("workflow_service.app.services.processing")
 processing_module.SessionLocal = SessionLocal
-reporting_module  # (no-op)
+
 
 # Override dependency
 def override_get_db():
@@ -63,10 +62,10 @@ def test_summary_counts():
     p_bad = {"source": "t", "category": "beta", "payload": {"priority": "xxx"}}
     p_pending = {"source": "t", "category": "beta", "payload": {"k": "v"}}
 
-    id1 = _create_record_and_process(p_good1, do_process=True)
-    id2 = _create_record_and_process(p_good2, do_process=True)
-    id3 = _create_record_and_process(p_bad, do_process=True)
-    id4 = _create_record_and_process(p_pending, do_process=False)
+    _create_record_and_process(p_good1, do_process=True)
+    _create_record_and_process(p_good2, do_process=True)
+    _create_record_and_process(p_bad, do_process=True)
+    _create_record_and_process(p_pending, do_process=False)
 
     # Wait briefly for any processing to commit (processing is synchronous, but keep small sleep)
     time.sleep(0.1)
@@ -95,9 +94,9 @@ def test_list_and_filtering():
     a2 = {"source": "t", "category": "catA", "payload": {"priority": 2}}
     b1 = {"source": "t", "category": "catB", "payload": {"priority": "not-n"}}  # will fail
 
-    id_a1 = _create_record_and_process(a1, do_process=True)
-    id_a2 = _create_record_and_process(a2, do_process=True)
-    id_b1 = _create_record_and_process(b1, do_process=True)
+    _create_record_and_process(a1, do_process=True)
+    _create_record_and_process(a2, do_process=True)
+    _create_record_and_process(b1, do_process=True)
 
     # List records with status=processed
     r = client.get("/records?status=processed")

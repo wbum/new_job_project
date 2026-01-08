@@ -1,7 +1,13 @@
+# Core dependencies
 fastapi
 uvicorn[standard]
 sqlalchemy
 pydantic
+pydantic-settings
+
+# Dev dependencies
 pytest
 httpx
-pydantic-settings
+ruff
+black
+pytest-cov

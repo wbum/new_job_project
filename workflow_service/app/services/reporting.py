@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy import func, and_
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from ..models.record import Record
@@ -11,7 +10,13 @@ from ..models.record import Record
 ALLOWED_STATUSES = {"pending", "processed", "failed"}
 
 
-def _apply_filters(query, status: Optional[str], category: Optional[str], date_from: Optional[datetime], date_to: Optional[datetime]):
+def _apply_filters(
+    query,
+    status: str | None,
+    category: str | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+):
     if status:
         query = query.filter(Record.status == status)
     if category:
@@ -23,9 +28,16 @@ def _apply_filters(query, status: Optional[str], category: Optional[str], date_f
     return query
 
 
-def get_records(db: Session, *, status: Optional[str] = None, category: Optional[str] = None,
-                created_after: Optional[datetime] = None, created_before: Optional[datetime] = None,
-                limit: int = 50, offset: int = 0) -> Tuple[List[Record], int]:
+def get_records(
+    db: Session,
+    *,
+    status: str | None = None,
+    category: str | None = None,
+    created_after: datetime | None = None,
+    created_before: datetime | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[Record], int]:
     """Return a page of records and the total matching count (without pagination).
 
     newest-first ordering is applied.
@@ -40,8 +52,14 @@ def get_records(db: Session, *, status: Optional[str] = None, category: Optional
     return items, total
 
 
-def get_summary(db: Session, *, status: Optional[str] = None, category: Optional[str] = None,
-                date_from: Optional[datetime] = None, date_to: Optional[datetime] = None) -> Dict[str, object]:
+def get_summary(
+    db: Session,
+    *,
+    status: str | None = None,
+    category: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+) -> dict[str, object]:
     """Return aggregated summary data for records.
 
     - totals by status
@@ -90,8 +108,6 @@ def get_summary(db: Session, *, status: Optional[str] = None, category: Optional
     if category:
         cat_q = cat_q.filter(Record.category == category)
 
-    by_category = [
-        {"category": cat, "count": int(cnt)} for cat, cnt in cat_q.all()
-    ]
+    by_category = [{"category": cat, "count": int(cnt)} for cat, cnt in cat_q.all()]
 
     return {"totals": totals, "by_category": by_category}
