@@ -2,11 +2,11 @@
 name = "workflow_service"
 version = "0.1.0"
 description = "Production-ready workflow service with state transitions and idempotency"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
@@ -28,7 +28,7 @@ known-first-party = ["workflow_service"]
 
 [tool.black]
 line-length = 100
-target-version = ["py39"]
+target-version = ["py310"]
 include = '\.pyi?$'
 
 [tool.pytest.ini_options]
