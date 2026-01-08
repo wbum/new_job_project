@@ -114,6 +114,26 @@ app.include_router(records.router)
 app.include_router(reports.router)
 
 
+# Root endpoint - provides service info and links
+@app.get("/")
+def root():
+    """
+    Root endpoint that provides service information and available endpoints.
+    """
+    return {
+        "service": "workflow_service",
+        "version": APP_VERSION,
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "openapi": "/openapi.json",
+            "records": "/records",
+            "reports": "/reports/summary",
+        },
+    }
+
+
 # Exception handlers: domain errors -> structured JSON
 @app.exception_handler(DomainError)
 async def domain_error_handler(request: Request, exc: DomainError):
