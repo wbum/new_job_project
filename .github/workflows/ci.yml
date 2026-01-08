@@ -34,7 +34,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=workflow_service --cov-report=term-missing
+        PYTHONPATH=$PYTHONPATH:$(pwd) pytest --cov=workflow_service --cov-report=term-missing
 
     - name: Upload coverage reports
       if: github.event_name == 'pull_request'
