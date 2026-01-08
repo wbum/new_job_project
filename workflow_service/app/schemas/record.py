@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 class RecordCreate(BaseModel):
     source: str = Field(..., example="api")
     category: str = Field(..., example="attendance")
-    payload: Dict[str, Any] = Field(..., example={"name": "Alice", "priority": 3})
+    payload: dict[str, Any] = Field(..., example={"name": "Alice", "priority": 3})
 
 
 class RecordRead(BaseModel):
@@ -18,11 +18,11 @@ class RecordRead(BaseModel):
     status: str
     source: str
     category: str
-    payload: Dict[str, Any]
-    result: Optional[Dict[str, Any]] = None
-    classification: Optional[str] = None
-    score: Optional[float] = None
-    error: Optional[str] = None
+    payload: dict[str, Any]
+    result: dict[str, Any] | None = None
+    classification: str | None = None
+    score: float | None = None
+    error: str | None = None
 
     class Config:
         orm_mode = True

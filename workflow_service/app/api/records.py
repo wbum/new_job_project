@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -60,7 +59,9 @@ def _to_read_model(rec: Record) -> RecordRead:
 
 
 @router.post("/records", response_model=RecordRead, status_code=status.HTTP_201_CREATED)
-def create_record(payload: RecordCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def create_record(
+    payload: RecordCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     rec = Record(
         source=payload.source,
         category=payload.category,
@@ -75,23 +76,25 @@ def create_record(payload: RecordCreate, background_tasks: BackgroundTasks, db: 
     return _to_read_model(rec)
 
 
-def _parse_iso_datetime_optional(value: Optional[str]) -> Optional[datetime]:
+def _parse_iso_datetime_optional(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
         if value.endswith("Z"):
             value = value[:-1] + "+00:00"
         return datetime.fromisoformat(value)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid datetime: {value}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid datetime: {value}"
+        ) from e
 
 
 @router.get("/records", response_model=dict)
 def list_records(
-    status: Optional[str] = Query(None),
-    category: Optional[str] = Query(None),
-    created_after: Optional[str] = Query(None),
-    created_before: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    category: str | None = Query(None),
+    created_after: str | None = Query(None),
+    created_before: str | None = Query(None),
     limit: int = Query(50, ge=1),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),

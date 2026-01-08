@@ -62,7 +62,6 @@ def get_summary_endpoint(
         "by_category": summary["by_category"],
     }
 ''',
-
     "workflow_service/app/api/records.py": r'''from __future__ import annotations
 
 import json
@@ -201,8 +200,7 @@ def post_process_record(record_id: str, db: Session = Depends(get_db)):
     rec = db.query(Record).filter(Record.id == record_id).first()
     return _to_read_model(rec)
 ''',
-
-    "workflow_service/app/main.py": r'''from fastapi import FastAPI
+    "workflow_service/app/main.py": r"""from fastapi import FastAPI
 from .api import records
 from .api import health  # existing
 from .api import reports  # new
@@ -217,9 +215,8 @@ Base.metadata.create_all(bind=engine)
 app.include_router(health.router)
 app.include_router(records.router)
 app.include_router(reports.router)
-''',
-
-    "tests/test_reporting.py": r'''import importlib
+""",
+    "tests/test_reporting.py": r"""import importlib
 import time
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -333,7 +330,7 @@ def test_list_and_filtering():
     assert r2.status_code == 200
     p2 = r2.json()
     assert p2["count"] <= 200
-''',
+""",
 }
 
 for path, content in files.items():

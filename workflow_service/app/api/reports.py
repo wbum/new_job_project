@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -11,7 +10,7 @@ from ..services import reporting
 router = APIRouter()
 
 
-def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
+def _parse_iso_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
@@ -19,16 +18,18 @@ def _parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
         if value.endswith("Z"):
             value = value[:-1] + "+00:00"
         return datetime.fromisoformat(value)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid datetime: {value}")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"invalid datetime: {value}"
+        ) from e
 
 
 @router.get("/reports/summary")
 def get_summary_endpoint(
-    status: Optional[str] = Query(None),
-    category: Optional[str] = Query(None),
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    category: str | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
     db=Depends(get_db),
 ):
     """
@@ -48,13 +49,20 @@ def get_summary_endpoint(
 
     # validate status (reporting will raise ValueError as well)
     try:
-        summary = reporting.get_summary(db, status=status, category=category, date_from=dt_from, date_to=dt_to)
+        summary = reporting.get_summary(
+            db, status=status, category=category, date_from=dt_from, date_to=dt_to
+        )
     except ValueError as ve:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve)) from ve
 
     return {
         "generated_at": datetime.utcnow().isoformat() + "Z",
-        "filters": {"status": status, "category": category, "date_from": date_from, "date_to": date_to},
+        "filters": {
+            "status": status,
+            "category": category,
+            "date_from": date_from,
+            "date_to": date_to,
+        },
         "totals": summary["totals"],
         "by_category": summary["by_category"],
     }

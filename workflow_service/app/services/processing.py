@@ -1,8 +1,8 @@
-import logging
 import json
+import logging
 from typing import Optional
 
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from ..database import engine
 from ..models.record import Record, StatusEnum

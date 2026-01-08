@@ -1,16 +1,20 @@
 from fastapi.testclient import TestClient
+
+from workflow_service.app.database import Base, engine
 from workflow_service.app.main import app
-from workflow_service.app.database import Base, engine, SessionLocal
-from workflow_service.app.models.record import Record, StatusEnum
+from workflow_service.app.models.record import StatusEnum
 
 client = TestClient(app)
+
 
 def setup_module(module):
     # create tables
     Base.metadata.create_all(bind=engine)
 
+
 def teardown_module(module):
     Base.metadata.drop_all(bind=engine)
+
 
 def test_create_and_process_record():
     # send payload matching the API schema (source, category, payload)
@@ -28,4 +32,8 @@ def test_create_and_process_record():
     r2 = client.get(f"/records/{record_id}")
     assert r2.status_code == 200
     detail = r2.json()
-    assert detail["status"] in [StatusEnum.processed.value, StatusEnum.pending.value, StatusEnum.failed.value]
+    assert detail["status"] in [
+        StatusEnum.processed.value,
+        StatusEnum.pending.value,
+        StatusEnum.failed.value,
+    ]
