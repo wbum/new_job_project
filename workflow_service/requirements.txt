@@ -4,6 +4,8 @@ uvicorn[standard]
 sqlalchemy
 pydantic
 pydantic-settings
+psycopg2-binary  # PostgreSQL adapter
+alembic  # Database migrations
 
 # Dev dependencies
 pytest

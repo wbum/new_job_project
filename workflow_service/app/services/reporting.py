@@ -37,17 +37,32 @@ def get_records(
     created_before: datetime | None = None,
     limit: int = 50,
     offset: int = 0,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
 ) -> tuple[list[Record], int]:
     """Return a page of records and the total matching count (without pagination).
 
-    newest-first ordering is applied.
+    Default ordering is newest-first (created_at desc).
+    Supports sorting by: created_at, status, category, source
     """
     base_q = db.query(Record)
     base_q = _apply_filters(base_q, status, category, created_after, created_before)
 
     total = base_q.count()
 
-    items = base_q.order_by(Record.created_at.desc()).limit(limit).offset(offset).all()
+    # Apply sorting
+    sort_column_map = {
+        "created_at": Record.created_at,
+        "status": Record.status,
+        "category": Record.category,
+        "source": Record.source,
+    }
+
+    sort_column = sort_column_map.get(sort_by, Record.created_at)
+    if sort_order.lower() == "asc":
+        items = base_q.order_by(sort_column.asc()).limit(limit).offset(offset).all()
+    else:
+        items = base_q.order_by(sort_column.desc()).limit(limit).offset(offset).all()
 
     return items, total
 

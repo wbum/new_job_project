@@ -111,3 +111,76 @@ def test_list_and_filtering():
     assert r2.status_code == 200
     p2 = r2.json()
     assert p2["count"] <= 200
+
+
+def test_sorting():
+    """Test sorting functionality on list endpoint."""
+    # Create records with different sources and categories
+    records = [
+        {"source": "api", "category": "alpha", "payload": {"x": 1}},
+        {"source": "web", "category": "beta", "payload": {"x": 2}},
+        {"source": "api", "category": "gamma", "payload": {"x": 3}},
+        {"source": "mobile", "category": "alpha", "payload": {"x": 4}},
+    ]
+
+    record_ids = []
+    for rec in records:
+        rid = _create_record_and_process(rec, do_process=False)
+        record_ids.append(rid)
+        time.sleep(0.01)  # Small delay to ensure different created_at times
+
+    # Test sorting by created_at desc (default)
+    r = client.get("/records?sort_by=created_at&sort_order=desc")
+    assert r.status_code == 200
+    data = r.json()
+    items = data["items"]
+    assert len(items) >= 4
+    # Most recent should be first
+    created_ats = [item["created_at"] for item in items[:4]]
+    assert created_ats == sorted(created_ats, reverse=True)
+
+    # Test sorting by created_at asc
+    r = client.get("/records?sort_by=created_at&sort_order=asc")
+    assert r.status_code == 200
+    data = r.json()
+    items = data["items"]
+    created_ats = [item["created_at"] for item in items[:4]]
+    assert created_ats == sorted(created_ats)
+
+    # Test sorting by source asc
+    r = client.get("/records?sort_by=source&sort_order=asc")
+    assert r.status_code == 200
+    data = r.json()
+    items = data["items"]
+    sources = [item["source"] for item in items[:4]]
+    assert sources == sorted(sources)
+
+    # Test sorting by category desc
+    r = client.get("/records?sort_by=category&sort_order=desc")
+    assert r.status_code == 200
+    data = r.json()
+    items = data["items"]
+    categories = [item["category"] for item in items[:4]]
+    assert categories == sorted(categories, reverse=True)
+
+    # Test sorting by status (all should be pending)
+    r = client.get("/records?sort_by=status&sort_order=asc")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["count"] >= 4
+
+
+def test_sorting_validation():
+    """Test that sorting validation works correctly."""
+    # Valid parameters should succeed
+    r = client.get("/records?sort_by=status&sort_order=asc")
+    assert r.status_code == 200
+
+    r = client.get("/records?sort_by=category&sort_order=desc")
+    assert r.status_code == 200
+
+    r = client.get("/records?sort_by=created_at")
+    assert r.status_code == 200
+
+    # Note: Invalid sort parameters would be rejected by FastAPI's validation
+    # but testing this requires fixing the error handler first (ErrorBody schema issue)

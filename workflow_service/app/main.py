@@ -88,8 +88,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 app = FastAPI(title="Workflow Service", version=APP_VERSION)
 
-# Development convenience: create tables if missing
-Base.metadata.create_all(bind=engine)
+# NOTE: Table creation is handled by Alembic migrations (see alembic/README.md)
+# For local dev, run: alembic upgrade head
 
 # add logging middleware and exception handlers
 app.add_middleware(RequestLoggingMiddleware)

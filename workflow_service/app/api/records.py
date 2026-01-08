@@ -97,13 +97,17 @@ def list_records(
     created_before: str | None = Query(None),
     limit: int = Query(50, ge=1),
     offset: int = Query(0, ge=0),
+    sort_by: str = Query("created_at", pattern="^(created_at|status|category|source)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
 ):
     """
-    List records with filters and pagination.
+    List records with filters, pagination, and sorting.
     - status, category (optional)
     - created_after, created_before (ISO date/time)
     - limit (default 50, max 200), offset (default 0)
+    - sort_by (created_at|status|category|source, default: created_at)
+    - sort_order (asc|desc, default: desc)
     Returns: { items: [...], count: <page_count>, total: <total_matching> }
     """
     # enforce max limit
@@ -123,6 +127,8 @@ def list_records(
         created_before=dt_before,
         limit=limit,
         offset=offset,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
     return {"items": [_to_read_model(i) for i in items], "count": len(items), "total": total}
