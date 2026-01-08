@@ -1,6 +1,6 @@
 # Workflow Service
 
-[![CI](https://github.com/YOUR_USERNAME/new_job_project/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USERNAME/new_job_project/actions/workflows/ci.yml)
+[![CI](https://github.com/wbum/new_job_project/actions/workflows/ci.yml/badge.svg)](https://github.com/wbum/new_job_project/actions/workflows/ci.yml)
 
 A production-ready FastAPI service for workflow automation with state transitions, idempotency, and comprehensive error handling.
 
