@@ -1,6 +1,5 @@
 import json
 import logging
-from typing import Optional
 
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -19,7 +18,7 @@ def process_record(record_id: str) -> None:
     This function creates and closes its own DB session so it doesn't rely on the
     request-scoped session.
     """
-    session: Optional[Session] = None
+    session: Session | None = None
     try:
         session = SessionLocal()
         rec = session.query(Record).filter(Record.id == record_id).first()
