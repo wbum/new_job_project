@@ -15,7 +15,6 @@ from .api import (
     records,
     reports,  # existing
 )
-from .database import Base, engine
 from .exceptions import DomainError
 from .schemas.error import ErrorBody, ErrorResponse
 
